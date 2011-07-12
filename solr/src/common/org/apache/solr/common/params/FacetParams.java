@@ -45,6 +45,12 @@ public interface FacetParams {
    */
   public static final String FACET_METHOD_fc = "fc";
   
+  /*
+  * return count of terms
+  * Can be overridden on a per field basis.
+  */
+  public static final String FACET_NUMTERMS = FACET + ".numTerms";
+  
   /**
    * Any lucene formated queries the user would like to use for
    * Facet Constraint Counts (multi-value)

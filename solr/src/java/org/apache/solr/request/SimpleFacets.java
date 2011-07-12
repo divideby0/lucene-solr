@@ -236,8 +236,12 @@ public class SimpleFacets {
 
 
   public NamedList getTermCounts(String field) throws IOException {
+     int limit = params.getFieldInt(field, FacetParams.FACET_LIMIT, 100);
+     return getTermCountsLimit(field, limit);
+  }
+    
+  public NamedList getTermCountsLimit(String field, int limit) throws IOException {
     int offset = params.getFieldInt(field, FacetParams.FACET_OFFSET, 0);
-    int limit = params.getFieldInt(field, FacetParams.FACET_LIMIT, 100);
     if (limit == 0) return new NamedList();
     Integer mincount = params.getFieldInt(field, FacetParams.FACET_MINCOUNT);
     if (mincount==null) {
@@ -308,11 +312,35 @@ public class SimpleFacets {
         try {
           parseParams(FacetParams.FACET_FIELD, f);
           String termList = localParams == null ? null : localParams.get(CommonParams.TERMS);
-          if (termList != null) {
-            res.add(key, getListedTermCounts(facetValue, termList));
-          } else {
-            res.add(key, getTermCounts(facetValue));
-          }
+          boolean numTerms = params.getFieldBool(facetValue, FacetParams.FACET_NUMTERMS, false);
+		  int limit = params.getFieldInt(facetValue, FacetParams.FACET_LIMIT, 100);
+		  // namedistinct of 1 means to only output number with limit = -1
+		  // this uses the cache
+		  NamedList resCount = new NamedList();
+		  NamedList counts = null;
+		  NamedList nolimit = null;
+		  if (numTerms) {
+		    if (termList != null) {
+		      counts = getListedTermCounts(facetValue, termList);
+		    } else {
+		      counts = getTermCountsLimit(facetValue, -1);
+		      nolimit = counts;
+		    }
+		    resCount.add("numTerms", counts.size());
+		  }
+		  if (limit != 0) {
+            if (termList != null) {
+              counts = getListedTermCounts(facetValue, termList);
+            } else {
+              if (limit == -1)
+			    counts = nolimit;
+		      else
+			    counts = getTermCountsLimit(facetValue, limit);
+		    }
+		    resCount.add("counts", counts);
+	      }
+          if (resCount.size() > 0)
+            res.add(key, resCount);
         } catch (Exception e) {
           String msg = "Exception during facet.field of " + f;
           SolrException.logOnce(SolrCore.log, msg, e);
